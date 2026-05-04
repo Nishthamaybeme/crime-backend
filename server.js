@@ -11,6 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ✅ DATABASE
 const db = new sqlite3.Database("crime.db");
 
 // ---------------- DATABASE INIT ----------------
@@ -36,10 +37,12 @@ db.serialize(() => {
   )`);
 
   db.get("SELECT COUNT(*) as count FROM crimes", (err, row) => {
-    if (err) return console.log(err);
+    if (err) {
+      console.log(err);
+      return;
+    }
 
     if (row.count === 0) {
-
       // 🔥 INSERT CRIMES
       crimes.forEach((c) => {
         db.run(
@@ -78,12 +81,15 @@ db.serialize(() => {
         );
       });
 
-      console.log("Database loaded from JSON");
+      console.log("✅ Database loaded from JSON");
     }
   });
+});
 
-}); // ✅ THIS WAS MISSING
-
+// ---------------- ROOT ROUTE (IMPORTANT) ----------------
+app.get("/", (req, res) => {
+  res.send("🚀 Backend is running");
+});
 
 // ---------------- TEST ROUTE ----------------
 app.get("/tables", (req, res) => {
@@ -102,7 +108,6 @@ app.get("/tables", (req, res) => {
     });
   });
 });
-
 
 // ---------------- QUERY ROUTE ----------------
 app.post("/query", (req, res) => {
@@ -144,7 +149,8 @@ app.post("/query", (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+// ---------------- SERVER START ----------------
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log("🚀 Server running on port " + PORT);
