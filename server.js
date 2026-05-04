@@ -2,6 +2,15 @@ const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const cors = require("cors");
 
+// 🔥 Error handling (VERY IMPORTANT for Render)
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT ERROR:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("UNHANDLED PROMISE:", err);
+});
+
 const crimes = require("./crimes.json");
 const criminals = require("./criminals.json");
 const victims = require("./victims.json");
@@ -11,8 +20,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ DATABASE
-const db = new sqlite3.Database("crime.db");
+// ✅ FIXED PATH
+const db = new sqlite3.Database("./crime.db");
 
 // ---------------- DATABASE INIT ----------------
 db.serialize(() => {
@@ -38,12 +47,13 @@ db.serialize(() => {
 
   db.get("SELECT COUNT(*) as count FROM crimes", (err, row) => {
     if (err) {
-      console.log(err);
+      console.log("DB ERROR:", err);
       return;
     }
 
     if (row.count === 0) {
-      // 🔥 INSERT CRIMES
+      console.log("Loading JSON data into DB...");
+
       crimes.forEach((c) => {
         db.run(
           "INSERT INTO crimes VALUES (?, ?, ?, ?, ?)",
@@ -57,7 +67,6 @@ db.serialize(() => {
         );
       });
 
-      // 🔥 INSERT CRIMINALS
       criminals.forEach((c) => {
         db.run(
           "INSERT INTO criminals VALUES (?, ?, ?)",
@@ -69,7 +78,6 @@ db.serialize(() => {
         );
       });
 
-      // 🔥 INSERT VICTIMS
       victims.forEach((v) => {
         db.run(
           "INSERT INTO victims VALUES (?, ?, ?)",
@@ -81,7 +89,7 @@ db.serialize(() => {
         );
       });
 
-      console.log("✅ Database loaded from JSON");
+      console.log("✅ Database loaded");
     }
   });
 });
@@ -121,35 +129,27 @@ app.post("/query", (req, res) => {
     });
   }
 
-  try {
-    const safeQuery = query.trim() + " LIMIT 200";
+  const safeQuery = query.trim() + " LIMIT 200";
 
-    db.all(safeQuery, [], (err, rows) => {
-      if (err) {
-        console.log("SQL ERROR:", err.message);
-
-        return res.json({
-          success: false,
-          error: err.message,
-          data: [],
-        });
-      }
+  db.all(safeQuery, [], (err, rows) => {
+    if (err) {
+      console.log("SQL ERROR:", err.message);
 
       return res.json({
-        success: true,
-        data: rows,
+        success: false,
+        error: err.message,
+        data: [],
       });
-    });
-  } catch (e) {
+    }
+
     return res.json({
-      success: false,
-      error: e.message,
-      data: [],
+      success: true,
+      data: rows,
     });
-  }
+  });
 });
 
-// ---------------- SERVER START ----------------
+// ---------------- START SERVER ----------------
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, "0.0.0.0", () => {
